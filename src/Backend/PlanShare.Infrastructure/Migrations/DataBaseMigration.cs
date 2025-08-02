@@ -2,13 +2,19 @@
 using FluentMigrator.Runner;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
+using MySqlConnector;
+using PlanShare.Domain.Enums;
 
 namespace PlanShare.Infrastructure.Migrations;
 public static class DataBaseMigration
 {
-    public static void Migrate(string connectionString, IServiceProvider serviceProvider)
+    public static void Migrate(DatabaseType databaseType, string connectionString, IServiceProvider serviceProvider)
     {
-        EnsureDatabaseCreatedForSQLServer(connectionString);
+        if (databaseType == DatabaseType.SqlServer)
+            EnsureDatabaseCreatedForSQLServer(connectionString);
+        else
+            EnsureDatabaseCreatedForMySql(connectionString);
+
         MigrateDatabase(serviceProvider);
     }
 
@@ -21,10 +27,16 @@ public static class DataBaseMigration
         var parameters = new DynamicParameters();
         parameters.Add("name", dbName);
         var records = dbConnection.Query("SELECT TOP 1 * FROM sys.databases WHERE name = @name", parameters);
-        if (!records.Any())
-        {
-            dbConnection.Execute($"CREATE DATABASE [{dbName}]");
-        }
+        if (!records.Any()) dbConnection.Execute($"CREATE DATABASE [{dbName}]");
+    }
+
+    private static void EnsureDatabaseCreatedForMySql(string connectionString)
+    {
+        var connStringBuilder = new MySqlConnectionStringBuilder(connectionString);
+        var dbName = connStringBuilder.Database;
+        connStringBuilder.Remove("Database");
+        using var dbConnection = new MySqlConnection(connStringBuilder.ConnectionString);
+        dbConnection.Execute($"CREATE DATABASE IF NOT EXISTS {dbName}");
     }
 
     private static void MigrateDatabase(IServiceProvider serviceProvider)

@@ -86,5 +86,6 @@ void MigrateDatabase()
 {
     using var scope = app.Services.CreateAsyncScope();
     var connectionString = builder.Configuration.ConnectionString();
-    DataBaseMigration.Migrate(connectionString, scope.ServiceProvider);
+    var databaseType = builder.Configuration.GetDatabaseType();
+    DataBaseMigration.Migrate(databaseType, connectionString, scope.ServiceProvider);
 }
