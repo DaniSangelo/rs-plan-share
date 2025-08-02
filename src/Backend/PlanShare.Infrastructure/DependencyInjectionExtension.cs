@@ -1,6 +1,8 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using FluentMigrator.Runner;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using PlanShare.Domain.Enums;
 using PlanShare.Domain.Repositories;
 using PlanShare.Domain.Repositories.Association;
 using PlanShare.Domain.Repositories.User;
@@ -15,6 +17,7 @@ using PlanShare.Infrastructure.Security.Cryptography;
 using PlanShare.Infrastructure.Security.Tokens.Access.Generator;
 using PlanShare.Infrastructure.Security.Tokens.Access.Validator;
 using PlanShare.Infrastructure.Services.LoggedUser;
+using System.Reflection;
 
 namespace PlanShare.Infrastructure;
 public static class DependencyInjectionExtension
@@ -26,6 +29,7 @@ public static class DependencyInjectionExtension
         AddTokenHandlers(services, configuration);
         AddPasswordEncripter(services);
         AddDbContext(services, configuration);
+        AddFluentMigrator(services, configuration);
     }
 
     private static void AddDbContext(IServiceCollection services, IConfiguration configuration)
@@ -41,15 +45,12 @@ public static class DependencyInjectionExtension
     private static void AddRepositories(IServiceCollection services)
     {
         services.AddScoped<IUnitOfWork, UnitOfWork>();
-
         services.AddScoped<IUserWriteOnlyRepository, UserRepository>();
         services.AddScoped<IUserReadOnlyRepository, UserRepository>();
         services.AddScoped<IUserUpdateOnlyRepository, UserRepository>();
-
         services.AddScoped<IWorkItemWriteOnlyRepository, WorkItemRepository>();
         services.AddScoped<IWorkItemReadOnlyRepository, WorkItemRepository>();
         services.AddScoped<IWorkItemUpdateOnlyRepository, WorkItemRepository>();
-
         services.AddScoped<IPersonAssociationReadOnlyRepository, PersonAssociationRepository>();
     }
 
@@ -67,5 +68,19 @@ public static class DependencyInjectionExtension
 
         services.AddScoped<IAccessTokenValidator>(option => new JwtTokenValidator(signingKey));
         services.AddScoped<IAccessTokenGenerator>(option => new JwtTokenGenerator(expirationTimeMinutes, signingKey));
+    }
+
+    private static void AddFluentMigrator(IServiceCollection services, IConfiguration configuration)
+    {
+        var connectionString = configuration.ConnectionString();
+        var databaseType = configuration.GetDatabaseType();
+        services.AddFluentMigratorCore().ConfigureRunner(config =>
+        {
+            var migrationRunnerBuilder = databaseType is DatabaseType.SqlServer ? config.AddSqlServer() : config.AddMySql5();
+            migrationRunnerBuilder
+                .WithGlobalConnectionString(connectionString)
+                .ScanIn(Assembly.Load("PlanShare.Infrastructure"))
+                .For.All();
+        });
     }
 }
