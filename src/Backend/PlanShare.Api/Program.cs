@@ -57,6 +57,8 @@ builder.Services.AddMvc(options => options.Filters.Add<ExceptionFilter>());
 builder.Services.AddScoped<ITokenProvider, HttpContextTokenValue>();
 
 builder.Services.AddHttpContextAccessor();
+var type = builder.Configuration.GetDatabaseType();
+Console.WriteLine($"Database type: {type}");
 
 var app = builder.Build();
 
