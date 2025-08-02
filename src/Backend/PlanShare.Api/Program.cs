@@ -66,20 +66,16 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
-
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
 app.UseMiddleware<CultureMiddleware>();
-
 app.UseHttpsRedirection();
-
 app.UseAuthorization();
-
 app.MapControllers();
 
-if (builder.Configuration.IsUnitTestEnviroment())
+if (!builder.Configuration.IsUnitTestEnviroment())
 {
     MigrateDatabase();
 }
@@ -89,5 +85,6 @@ app.Run();
 void MigrateDatabase()
 {
     using var scope = app.Services.CreateAsyncScope();
-    DataBaseMigration.MigrateDatabase(scope.ServiceProvider);
+    var connectionString = builder.Configuration.ConnectionString();
+    DataBaseMigration.Migrate(connectionString, scope.ServiceProvider);
 }
